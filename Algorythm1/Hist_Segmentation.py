@@ -1,6 +1,7 @@
 import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 """
 Installation
 1.Python : 3.10.9
@@ -74,6 +75,13 @@ for i in range(3):
         axs[i, j].plot(diff, color='green', label='DIFF')
         axs[i, j].set_title(f"Region ({i+1}, {j+1})")
         axs[i, j].legend()
+print(len(diff_list))
+for seg in diff_list:
+    indices = np.where(seg == 0)
+    arr = np.delete(seg, indices)
+    sum = np.sum(arr)
+    print(sum)
+    
 plt.xlabel('Pixel Intensity')
 plt.ylabel('Frequency')
 plt.suptitle('Histogram Comparison')

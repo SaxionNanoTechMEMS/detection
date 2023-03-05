@@ -2,6 +2,10 @@ import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy import stats as sc
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+import os
 """
 Installation
 1.Python : 3.10.9
@@ -29,63 +33,154 @@ This will allow us to determine the similarity or dissimilarity between the two 
 We can then visualize the differences by plotting the histograms of each region for each image and the difference between them.
 """
 
-# Read images and convert them to grayscale
-# Reseize the images so i can do operations later on
-img1 = cv.imread('test.png', 0)
-img2 = cv.imread('model.png', 0)
-img1 = cv.resize(img1, (250, 250))
-img2 = cv.resize(img2, (250, 250))
-
-# Draw a 3X3 rechtangle on the images
-h, w = img1.shape[:2]
-dh = h // 3
-dw = w // 3
-for i in range(3):
-    for j in range(3):
-        cv.rectangle(img1, (j*dw, i*dh), ((j+1)*dw, (i+1)*dh), (0, 0, 255), thickness=2)
-        cv.rectangle(img2, (j*dw, i*dh), ((j+1)*dw, (i+1)*dh), (0, 0, 255), thickness=2)
-
-
-# Display the images
-cv.imshow('image1', img1)
-cv.imshow('image2', img2)
-
-# Create a blank image with the same dimensions as the input image
-mask = np.zeros_like(img2)
-
-
-# Plot a histogram for each region
-# A histogram is a graphical representation of the distribution of pixel intensities in an image.
-fig, axs = plt.subplots(nrows=3, ncols=3, sharex=True, sharey=True, figsize=(10, 10))
-diff_list=[]
-for i in range(3):
-    for j in range(3):
-        # Set the mask for the current region
-        mask.fill(0)
-        mask[i*dh:(i+1)*dh, j*dw:(j+1)*dw] = 255
         
-        # Calculate the histogram for each image using the current mask
-        hist1 = cv.calcHist([img1],[0],mask,[256],[0,256])
-        hist2 = cv.calcHist([img2],[0],mask,[256],[0,256])
-        diff=hist1-hist2
-        diff_list.append(diff)
-        # Plot the histograms for the current region
-        axs[i, j].plot(hist1, color='red', label='Image 1')
-        axs[i, j].plot(hist2, color='blue', label='Image 2')
-        axs[i, j].plot(diff, color='green', label='DIFF')
-        axs[i, j].set_title(f"Region ({i+1}, {j+1})")
-        axs[i, j].legend()
-print(len(diff_list))
-for seg in diff_list:
-    indices = np.where(seg == 0)
-    arr = np.delete(seg, indices)
-    sum = np.sum(arr)
-    print(sum)
-    
-plt.xlabel('Pixel Intensity')
-plt.ylabel('Frequency')
-plt.suptitle('Histogram Comparison')
-plt.show()
+def calc_metrics(array):
 
-cv.waitKey(0)
-cv.destroyAllWindows()
+    THRESH_HOLD_STD=6.5
+    THRESH_HOLD_IQR=1
+    THRESH_HOLD_MAX=40
+
+
+    numpy = np.array(array)
+    outputDict = {}
+    """
+    The first loop calculates the standard deviation of each image using np.std(numpy, axis=1) 
+    and checks if the standard deviation is greater than THRESH_HOLD_STD. 
+    If the standard deviation is greater than THRESH_HOLD_STD, it sets the corresponding value in outputDict to 1, 
+    indicating that the image has a potential defect. Otherwise, it sets the value to 0."""
+
+    for count,dev in enumerate(np.std(numpy,axis = 1)):
+        if(dev > THRESH_HOLD_STD):
+            outputDict.setdefault(count,[]).append(1)
+            #print(dev, f'Pic nr: {count} has potential defect -----------' ) 
+        else:
+            outputDict.setdefault(count,[]).append(0)
+            #print(dev, f'Pic nr: {count} no defects detected' ) 
+
+    """
+    The second loop calculates the interquartile range (IQR) of each image using sc.iqr(numpy, axis=1) 
+    and checks if the IQR is greater than or equal to THRESH_HOLD_IQR.
+    If the IQR is greater than or equal to THRESH_HOLD_IQR, it sets the corresponding value in outputDict to 1,
+    indicating that the image has a potential defect. Otherwise, it sets the value to 0.
+    """
+
+    for count,iqr in enumerate(sc.iqr(numpy,axis = 1)):
+        if(iqr >= THRESH_HOLD_IQR):
+            #print(iqr, f'Pic nr: {count} has potential defect -----------' ) 
+            outputDict.setdefault(count,[]).append(1)
+        else:
+            #print(iqr, f'Pic nr: {count} no defects detected' ) 
+            outputDict.setdefault(count,[]).append(0)
+
+    """
+    The third loop calculates the maximum absolute value of each image using np.amax(np.absolute(numpy), axis=1)
+    and checks if the maximum absolute value is greater than or equal to THRESH_HOLD_MAX.
+    If the maximum absolute value is greater than or equal to THRESH_HOLD_MAX, it sets the corresponding value in outputDict to 1, 
+    indicating that the image has a potential defect. Otherwise, it sets the value to 0.
+    """
+
+    for count,maxVal in enumerate(np.amax(np.absolute(numpy),axis = 1)):
+        if(maxVal >= THRESH_HOLD_MAX):
+            #print(maxVal, f'Pic nr: {count} has potential defect -----------') 
+            outputDict.setdefault(count,[]).append(1)
+        else:
+            #print(maxVal, f'Pic nr: {count} no defects detected' ) 
+            outputDict.setdefault(count,[]).append(0)
+
+    """Export the potential defects ."""
+            
+    for k in outputDict.keys():
+        if np.sum(np.array(outputDict[k])) >= 2:
+            print(f'{k} potential problem')
+
+    
+def main(filename):
+
+    # Read images and convert them to grayscale
+    
+    img1 = cv.imread(r'C:\Users\stdia\Desktop\OpenCV\SSS\Algo1\model.png', 0)
+    # root = Tk()
+    # root.withdraw()
+    # filename = askopenfilename()
+    img2 = cv.imread(filename, 0)
+
+    # Reseize the images so i can do operations later on
+    SIZE = 500
+
+    img1 = cv.resize(img1, (SIZE, SIZE))
+    img2 = cv.resize(img2, (SIZE, SIZE))
+
+    # Draw a 3X3 rechtangle on the images
+    h, w = img1.shape[:2]
+    splitCount = 10
+
+    dh = h // splitCount
+    dw = w // splitCount
+    for i in range(splitCount):
+        for j in range(splitCount):
+            # print(i,j)
+            image1 = cv.rectangle(img1, (j*dw, i*dh), ((j+1)*dw, (i+1)*dh), (0, 0, 255), thickness=2)
+            image2 = cv.rectangle(img2, (j*dw, i*dh), ((j+1)*dw, (i+1)*dh), (0, 0, 255), thickness=2)
+            
+            cv.putText(image1, str(splitCount*i+j), (j*dw + 10, i*dh + int(SIZE/splitCount) ), cv.FONT_HERSHEY_SIMPLEX, 0.9,  (0,0,255), 2)
+            cv.putText(image2, str(splitCount*i+j), (j*dw + 10, i*dh + int(SIZE/splitCount) ),cv.FONT_HERSHEY_SIMPLEX, 0.9,   (0,0,255),2)
+
+
+    # Display the images
+    cv.imshow('model', img1)
+    cv.imshow(f'{filename}', img2)
+
+    # Create a blank image with the same dimensions as the input image
+    mask = np.zeros_like(img2)
+
+
+    # Plot a histogram for each region
+    # A histogram is a graphical representation of the distribution of pixel intensities in an image.
+    fig, axs = plt.subplots(nrows=splitCount, ncols=splitCount, sharex=True, sharey=True, figsize=(1, 1))
+    diff_list=[]
+    for i in range(splitCount):
+        for j in range(splitCount):
+            # Set the mask for the current region
+            mask.fill(0)
+            mask[i*dh:(i+1)*dh, j*dw:(j+1)*dw] = 255
+            
+            # Calculate the histogram for each image using the current mask
+            hist1 = cv.calcHist([img1],[0],mask,[256],[0,256])
+            hist2 = cv.calcHist([img2],[0],mask,[256],[0,256])
+            diff=hist1-hist2
+            diff_list.append(diff)
+            # Plot the histograms for the current region
+            # axs[i, j].plot(hist1, color='red', label='Image 1')
+            # axs[i, j].plot(hist2, color='blue', label='Image 2')
+            # axs[i, j].plot(diff, color='green', label='DIFF')
+            # axs[i, j].set_title(f"Region ({i+1}, {j+1})")
+            # axs[i, j].legend()
+            #print(len(diff_list))
+
+    #output_diff(diff_list)
+
+    calc_metrics(diff_list)
+
+    for seg in diff_list:
+        indices = np.where(seg == 0)
+        arr = np.delete(seg, indices)
+        sum = np.sum(arr)
+        #print(sum)
+
+
+
+    # plt.xlabel('Pixel Intensity')
+    # plt.ylabel('Frequency')
+    # plt.suptitle('Histogram Comparison')
+    # plt.show()
+
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+if __name__ == '__main__':
+    root=os.getcwd()
+    test = os.path.join(root,'test_data')
+    for data in os.listdir(test):
+        print(data)
+        path=os.path.join(test,data)    
+        main(path)

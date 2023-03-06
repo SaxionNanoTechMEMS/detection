@@ -1,3 +1,7 @@
+import os
+import pathlib
+import sys
+
 import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
@@ -5,7 +9,7 @@ import pandas as pd
 from scipy import stats as sc
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
-import os
+
 """
 Installation
 1.Python : 3.10.9
@@ -94,24 +98,22 @@ def calc_metrics(array):
             print(f'{k} potential problem')
 
     
-def main(filename):
-
-    # Read images and convert them to grayscale
-    
-    img1 = cv.imread(r'C:\Users\stdia\Desktop\OpenCV\SSS\Algo1\model.png', 0)
+def process_image(model, image):
     # root = Tk()
     # root.withdraw()
     # filename = askopenfilename()
-    img2 = cv.imread(filename, 0)
+
+    # Read images and convert them to grayscale
+    image = cv.imread(image, 0)
 
     # Reseize the images so i can do operations later on
     SIZE = 500
 
-    img1 = cv.resize(img1, (SIZE, SIZE))
-    img2 = cv.resize(img2, (SIZE, SIZE))
+    model = cv.resize(model, (SIZE, SIZE))
+    image = cv.resize(image, (SIZE, SIZE))
 
     # Draw a 3X3 rechtangle on the images
-    h, w = img1.shape[:2]
+    h, w = model.shape[:2]
     splitCount = 10
 
     dh = h // splitCount
@@ -119,19 +121,19 @@ def main(filename):
     for i in range(splitCount):
         for j in range(splitCount):
             # print(i,j)
-            image1 = cv.rectangle(img1, (j*dw, i*dh), ((j+1)*dw, (i+1)*dh), (0, 0, 255), thickness=2)
-            image2 = cv.rectangle(img2, (j*dw, i*dh), ((j+1)*dw, (i+1)*dh), (0, 0, 255), thickness=2)
+            image1 = cv.rectangle(model, (j*dw, i*dh), ((j+1)*dw, (i+1)*dh), (0, 0, 255), thickness=2)
+            image2 = cv.rectangle(image, (j*dw, i*dh), ((j+1)*dw, (i+1)*dh), (0, 0, 255), thickness=2)
             
             cv.putText(image1, str(splitCount*i+j), (j*dw + 10, i*dh + int(SIZE/splitCount) ), cv.FONT_HERSHEY_SIMPLEX, 0.9,  (0,0,255), 2)
             cv.putText(image2, str(splitCount*i+j), (j*dw + 10, i*dh + int(SIZE/splitCount) ),cv.FONT_HERSHEY_SIMPLEX, 0.9,   (0,0,255),2)
 
 
     # Display the images
-    cv.imshow('model', img1)
-    cv.imshow(f'{filename}', img2)
+    cv.imshow('model', model)
+    cv.imshow(f'{filename}', image)
 
     # Create a blank image with the same dimensions as the input image
-    mask = np.zeros_like(img2)
+    mask = np.zeros_like(image)
 
 
     # Plot a histogram for each region
@@ -145,8 +147,8 @@ def main(filename):
             mask[i*dh:(i+1)*dh, j*dw:(j+1)*dw] = 255
             
             # Calculate the histogram for each image using the current mask
-            hist1 = cv.calcHist([img1],[0],mask,[256],[0,256])
-            hist2 = cv.calcHist([img2],[0],mask,[256],[0,256])
+            hist1 = cv.calcHist([model],[0],mask,[256],[0,256])
+            hist2 = cv.calcHist([image],[0],mask,[256],[0,256])
             diff=hist1-hist2
             diff_list.append(diff)
             # Plot the histograms for the current region
@@ -177,10 +179,21 @@ def main(filename):
     cv.waitKey(0)
     cv.destroyAllWindows()
 
+def main():
+    model = pathlib.Path().glob('model.png')
+    if not model:
+        sys.exit("Model image (model.png) is missing")
+
+    test_images = pathlib.Path('test_data').glob('*.png')
+    if not model:
+        sys.exit("Test images (test_data/) is missing")
+
+    model_image = cv.imread(str(model[0].resolve()), 0)
+
+    for image in test_images:
+        absolute_model_path = str(image.resolve())
+        
+        process_image(model_image, image)
+
 if __name__ == '__main__':
-    root=os.getcwd()
-    test = os.path.join(root,'test_data')
-    for data in os.listdir(test):
-        print(data)
-        path=os.path.join(test,data)    
-        main(path)
+    main()

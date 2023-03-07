@@ -98,18 +98,18 @@ def calc_metrics(array):
             print(f'{k} potential problem')
 
     
-def process_image(model, image):
+def process_image(model_reference, image_path: pathlib.Path):
     # root = Tk()
     # root.withdraw()
     # filename = askopenfilename()
 
     # Read images and convert them to grayscale
-    image = cv.imread(image, 0)
+    image = cv.imread(str(image_path.resolve()), 0)
 
     # Reseize the images so i can do operations later on
     SIZE = 500
 
-    model = cv.resize(model, (SIZE, SIZE))
+    model = cv.resize(model_reference, (SIZE, SIZE))
     image = cv.resize(image, (SIZE, SIZE))
 
     # Draw a 3X3 rechtangle on the images
@@ -130,11 +130,10 @@ def process_image(model, image):
 
     # Display the images
     cv.imshow('model', model)
-    cv.imshow(f'{filename}', image)
+    cv.imshow(image_path.name, image)
 
     # Create a blank image with the same dimensions as the input image
     mask = np.zeros_like(image)
-
 
     # Plot a histogram for each region
     # A histogram is a graphical representation of the distribution of pixel intensities in an image.
@@ -176,24 +175,28 @@ def process_image(model, image):
     # plt.suptitle('Histogram Comparison')
     # plt.show()
 
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
 def main():
     model = pathlib.Path().glob('model.png')
     if not model:
         sys.exit("Model image (model.png) is missing")
 
     test_images = pathlib.Path('test_data').glob('*.png')
-    if not model:
+    if not test_images:
         sys.exit("Test images (test_data/) is missing")
 
-    model_image = cv.imread(str(model[0].resolve()), 0)
+    test_images = [x.resolve() for x in test_images]
 
-    for image in test_images:
-        absolute_model_path = str(image.resolve())
-        
+
+    # Read the model image
+    model = str(list(model)[0].resolve())
+    model_image = cv.imread(model, 0)
+
+    # Process each test image
+    for image in test_images:        
         process_image(model_image, image)
+
+    cv.waitKey(0)
+    cv.destroyAllWindows()
 
 if __name__ == '__main__':
     main()
